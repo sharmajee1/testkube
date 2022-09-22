@@ -19,6 +19,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var (
+	executorArgs []string
+	envs         map[string]string
+)
+
 // NewCRDTestsCmd is command to generate test CRDs
 func NewCRDTestsCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -91,7 +96,7 @@ func NewCRDTestsCmd() *cobra.Command {
 				if _, ok := tests[testType]; !ok {
 					tests[testType] = make(map[string]client.UpsertTestOptions, 0)
 				}
-
+				test.ExecutionRequest = &testkube.ExecutionRequest{Args: executorArgs, Envs: envs}
 				tests[testType][testName] = *test
 				return nil
 			})
@@ -102,6 +107,8 @@ func NewCRDTestsCmd() *cobra.Command {
 		},
 	}
 
+	cmd.Flags().StringArrayVarP(&executorArgs, "executor-args", "", []string{}, "executor binary additional arguments")
+	cmd.Flags().StringToStringVarP(&envs, "env", "", map[string]string{}, "envs in a form of name1=val1 passed to executor")
 	return cmd
 }
 
@@ -175,9 +182,11 @@ func addEnvToTests(tests map[string]map[string]client.UpsertTestOptions,
 
 					envTest := test
 					envTest.Name = sanitizeName(envTest.Name + "-" + envName)
-					envTest.ExecutionRequest = &testkube.ExecutionRequest{
-						VariablesFile: fmt.Sprintf("%q", strings.TrimSpace(string(data))),
+
+					if envTest.ExecutionRequest == nil {
+						envTest.ExecutionRequest = &testkube.ExecutionRequest{}
 					}
+					envTest.ExecutionRequest.VariablesFile = fmt.Sprintf("%q", strings.TrimSpace(string(data)))
 
 					testMap[envTest.Name] = envTest
 				}
